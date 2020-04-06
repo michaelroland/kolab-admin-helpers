@@ -1,7 +1,8 @@
 # Collection of tools for Kolab administration
 
 This repository contains a collection of various helper scripts for administration
-tasks that are not too well supported by Kolab.
+tasks that are not too well supported by [Kolab](https://kolab.org/) and its underlying
+components.
 
 
 ## GET LATEST SOURCE

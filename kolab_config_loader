@@ -1,0 +1,168 @@
+#!/bin/echo "This script is not intended to be run by itself!"
+
+################################################################################
+## 
+## Analyzes Kolab installation and loads tool and configuration paths into
+## environment
+## 
+## Copyright (C) 2015-2020 Michael Roland <mi.roland@gmail.com>
+## 
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+## 
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+## 
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <https://www.gnu.org/licenses/>.
+## 
+################################################################################
+
+
+SCRIPT_NAME=$(basename $0)
+SCRIPT_PATH=$(readlink -f "$(dirname $0)")
+
+
+KOLAB_CONF="/etc/kolab/kolab.conf"
+ROUNDCUBE_CONF="/etc/roundcubemail/defaults.inc.php"
+IMAPD_CONF="/etc/imapd.conf"
+MYSQL_USE_KOLAB_USER=0
+SERVICE_SMTP="postfix.service"
+SERVICE_IMAP="cyrus-imapd.service"
+SERVICE_WEB="apache2.service"
+IMAPD_USER="cyrus"
+IMAPD_GROUP="mail"
+MAIL_LOG="/var/log/mail.log*"
+SABRE_LOG="/var/log/apache2/access.log*"
+
+KOLAB_AUTH_CACHE_URI_DEFAULT="sqlite:///var/lib/kolab/auth_cache.db"
+KOLAB_POLICY_CACHE_URI_DEFAULT="mysql://localhost/kolab"
+ROUNDCUBE_DB_URI_DEFAULT="mysql://localhost/roundcubemail"
+IMAP_SPOOL_DEFAULT="/var/spool/cyrus/mail"
+IMAP_NAMESPACE_USER="user"
+IMAP_PERMISSIONS_SELF="lrswipkxtecdan"
+IMAP_HIERARCHY_SEP="/"
+IMAP_FOLDER_SPAM_DEFAULT="Spam"
+IMAP_FOLDER_SA_LEARN_SPAM_DEFAULT="Learn-as-Spam"
+IMAP_FOLDER_SA_LEARN_HAM_DEFAULT="Learn-as-NoSpam"
+IMAP_ATTRIBUTE_FOLDERTYPE="/private/vendor/kolab/folder-type"
+IMAP_FOLDERTYPE_MAIL="mail"
+IMAP_FOLDERTYPE_JUNKMAIL="mail.junkemail"
+
+
+KOLAB_CMD=$(which kolab)
+if [ ! -z "$KOLAB_CMD" ] ; then
+    KOLAB_CMD="$KOLAB_CMD "
+else
+    echo "Error: Kolab installation not found!" >&2
+fi
+
+CYRUS_CMD=$(which cyrus)
+if [ ! -z "$CYRUS_CMD" ] ; then
+    CYRUS_CMD="$CYRUS_CMD "
+elif [ -x "/usr/sbin/cyrus" ] ; then
+    CYRUS_CMD="/usr/sbin/cyrus "
+elif [ -x "/usr/lib/cyrus/bin/master" ] ; then
+    CYRUS_CMD="/usr/lib/cyrus/bin/"
+else
+    echo "Error: Cyrus installation not found!" >&2
+fi
+
+SQLITE_CMD=$(which sqlite3)
+if [ -z "$SQLITE_CMD" ] ; then
+    echo "Error: sqlite3 not found!" >&2
+fi
+
+MYSQL_CMD=$(which mysql)
+if [ -z "$MYSQL_CMD" ] ; then
+    echo "Error: mysql not found!" >&2
+fi
+
+function get_config_ini_value () {
+    local conffile="$1"
+    local confsection="$2"
+    local confkey="$3"
+    if [ -f "$conffile" ] ; then
+        cat "$conffile" \
+            | sed -n -E '/^\s*\[\s*'"$confsection"'\s*\]/,/^\s*\[.*\].*$/p' \
+            | sed -n -E 's/^\s*'"$confkey"'\s*=\s*('"'"'(.*?)'"'"'|"(.*?)"|(.*?))\s*$/\2\3\4/p'
+    else
+        echo "Error: $conffile not found!" >&2
+    fi
+}
+
+function get_config_php_value () {
+    local conffile="$1"
+    local confkey="$2"
+    if [ -f "$conffile" ] ; then
+        cat "$conffile" \
+            | sed -n -E 's/^\s*'"$confkey"'\s*=\s*('"'"'(.*?)'"'"'|"(.*?)")\s*;.*$/\2\3/p'
+    else
+        echo "Error: $conffile not found!" >&2
+    fi
+}
+
+function get_config_kv_value () {
+    local conffile="$1"
+    local confkey="$2"
+    if [ -f "$conffile" ] ; then
+        cat "$conffile" \
+            | sed -n -E 's/^\s*'"$confkey"'\s*:\s*(.*?)\s*$/\1/p'
+    else
+        echo "Error: $conffile not found!" >&2
+    fi
+}
+
+function get_db_cmd () {
+    local uri="$1"
+    local scheme=$(echo "$uri" | sed -n -E 's/^([^:]+):.*$/\1/p')
+    local host=$(echo "$uri" | sed -n -E 's/^([^:]+):(\/\/)?([^\/]*)(\/.*)?$/\3/p')
+    local path=$(echo "$uri" | sed -n -E 's/^([^:]+):(\/\/)?([^\/]*)(\/.*)?$/\4/p')
+    local cmd=""
+    if [ "$scheme" == "sqlite" ] ; then
+        cmd="${SQLITE_CMD} $path"
+    elif [ "$scheme" == "mysql" ] ; then
+        local database=$(echo "$path" | sed -n -E 's/^\/(.*)$/\1/p')
+        local username=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)$/\2/p')
+        local password=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)$/\4/p')
+        local hostname=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)$/\5/p')
+        if [ $MYSQL_USE_KOLAB_USER -eq 0 ] ; then
+            cmd="${MYSQL_CMD} --host=$hostname $database"
+        else
+            cmd="${MYSQL_CMD} --host=$hostname --user=$username --password=$password $database"
+        fi
+    fi
+    echo "$cmd"
+}
+
+kolab_auth_cache_uri=$(get_config_ini_value "$KOLAB_CONF" "ldap" "auth_cache_uri")
+if [ -z "$kolab_auth_cache_uri" ] ; then
+    kolab_auth_cache_uri="$KOLAB_AUTH_CACHE_URI_DEFAULT"
+fi
+KOLAB_AUTH_CACHE_CMD=$(get_db_cmd "$kolab_auth_cache_uri")
+
+kolab_policy_cache_uri=$(get_config_ini_value "$KOLAB_CONF" "kolab_smtp_access_policy" "cache_uri")
+if [ -z "$kolab_policy_cache_uri" ] ; then
+    kolab_policy_cache_uri="$KOLAB_POLICY_CACHE_URI_DEFAULT"
+fi
+KOLAB_POLICY_CACHE_CMD=$(get_db_cmd "$kolab_policy_cache_uri")
+
+roundcube_db_uri=$(get_config_php_value "$ROUNDCUBE_CONF" '\$config\[["'"'"']db_dsnw["'"'"']\]')
+if [ -z "$roundcube_db_uri" ] ; then
+    roundcube_db_uri="$ROUNDCUBE_DB_URI_DEFAULT"
+fi
+ROUNDCUBE_DB_CMD=$(get_db_cmd "$roundcube_db_uri")
+
+if get_config_kv_value "$IMAPD_CONF" "unixhierarchysep" | grep -q -E '^\s*[0nN]' ; then
+    IMAP_HIERARCHY_SEP="."
+fi
+
+IMAP_SPOOL=$(get_config_kv_value "$IMAPD_CONF" "partition-default")
+if [ -z "IMAP_SPOOL" ] ; then
+    IMAP_SPOOL="$IMAP_SPOOL_DEFAULT"
+fi
+

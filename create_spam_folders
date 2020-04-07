@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+
+################################################################################
+## 
+## Create IMAP spam sorting folders
+## 
+## Copyright (C) 2015-2020 Michael Roland <mi.roland@gmail.com>
+## 
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+## 
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+## 
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <https://www.gnu.org/licenses/>.
+## 
+################################################################################
+
+
+SCRIPT_NAME=$(basename $0)
+SCRIPT_PATH=$(readlink -f "$(dirname $0)")
+
+
+. "$SCRIPT_PATH/kolab_config_loader"
+
+
+spam_drop="${IMAP_FOLDER_SPAM_DEFAULT}"
+salearn_spam="${IMAP_FOLDER_SA_LEARN_SPAM_DEFAULT}"
+salearn_ham="${IMAP_FOLDER_SA_LEARN_HAM_DEFAULT}"
+
+
+usage() {
+	echo "Usage: ${SCRIPT_NAME} [options]"
+	echo "Create IMAP spam sorting folders (if missing)"
+	echo ""
+	echo -e "Options:"
+	echo -e "\t-D <folder> Incoming Spam folder (Spam drop)"
+	echo -e "\t            (default: $spam_drop)"
+	echo -e "\t-S <folder> Spam sorting folder (for sa-learn-cyrus)"
+	echo -e "\t            (default: $salearn_spam)"
+	echo -e "\t-H <folder> NoSpam (ham) sorting folder (for sa-learn-cyrus)"
+	echo -e "\t            (default: $salearn_ham)"
+	echo -e "\t-h          Show this message"
+	echo ""
+	echo "Copyright (c) 2015-2020 Michael Roland <mi.roland@gmail.com>"
+	echo "License GPLv3+: GNU GPL version 3 or later <https://www.gnu.org/licenses/>"
+	echo ""
+	echo "This is free software: you can redistribute and/or modify it under the"
+	echo "terms of the GPLv3+.  There is NO WARRANTY; not even the implied warranty"
+	echo "of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+	echo ""
+}
+
+while getopts ":h?D:S:H:" opt; do
+    case "$opt" in
+    h|\?)
+        if [ ! -z $OPTARG ] ; then
+            echo "${SCRIPT_NAME}: invalid option -- $OPTARG" >&2
+        fi
+        usage
+        exit 1
+        ;;
+    D)
+        spam_drop=$OPTARG
+        ;;
+    S)
+        salearn_spam=$OPTARG
+        ;;
+    H)
+        salearn_ham=$OPTARG
+        ;;
+    esac
+done
+
+shift $((OPTIND-1))
+[ "$1" = "--" ] && shift
+
+
+if [ ! -z "$salearn_spam" ] ; then
+    if [ ! -z "$spam_drop" ] ; then
+        salearn_spam="$spam_drop${IMAP_HIERARCHY_SEP}$salearn_spam"
+    fi
+fi
+if [ ! -z "$salearn_ham" ] ; then
+    if [ ! -z "$spam_drop" ] ; then
+        salearn_ham="$spam_drop${IMAP_HIERARCHY_SEP}$salearn_ham"
+    fi
+fi
+
+echo "Scanning mailboxes for missing spam folders ..."
+userprefix="${IMAP_NAMESPACE_USER}${IMAP_HIERARCHY_SEP}"
+for mailbox in $(${KOLAB_CMD}list-mailboxes "$userprefix%") ; do
+    username=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_USER"'[\.\/](.*?)(@[^@]*)$/\1/p')
+    domain=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_USER"'[\.\/](.*?)(@[^@]*)$/\2/p')
+
+    if [ $(${KOLAB_CMD}user-info "$username$domain" | head -c1 | wc -c) -gt 0 ] ; then
+        # user exists, try to create folders
+		for folder in \
+			"$spam_drop" \
+			"$salearn_spam" \
+			"$salearn_ham" \
+		; do
+            if [ ! -z "$folder" ] ; then
+                foldermbx="$userprefix$username${IMAP_HIERARCHY_SEP}$folder$domain"
+                if [ $(${KOLAB_CMD}list-mailboxes "$foldermbx" | head -c1 | wc -c) -eq 0 ] ; then
+                    echo "Creating missing folder '$folder' for user '$username$domain'"
+                    ${KOLAB_CMD}create-mailbox "$foldermbx"
+                    ${KOLAB_CMD}add-user-subscription "$username$domain" "$folder"
+                fi
+
+                foldertype="${IMAP_FOLDERTYPE_MAIL}"
+                if [ "$folder" == "$spam_drop" ] ; then
+                    foldertype="${IMAP_FOLDERTYPE_JUNKMAIL}"
+                fi
+                if ! ${KOLAB_CMD}list-mailbox-metadata "$foldermbx" 2>/dev/null | grep -q -E '^\s*'"${IMAP_ATTRIBUTE_FOLDERTYPE}"'\s+' ; then
+                    echo "Setting missing folder-type attribute '$foldertype' for folder '$folder' for user '$username$domain'"
+                    ${KOLAB_CMD}set-mailbox-metadata "$foldermbx" "${IMAP_ATTRIBUTE_FOLDERTYPE}" "$foldertype"
+                fi
+            fi
+		done
+    fi
+done
+
+echo "Done."

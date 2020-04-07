@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+
+################################################################################
+## 
+## List active users
+## 
+## Copyright (C) 2015-2020 Michael Roland <mi.roland@gmail.com>
+## 
+## This program is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+## 
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+## 
+## You should have received a copy of the GNU General Public License
+## along with this program.  If not, see <https://www.gnu.org/licenses/>.
+## 
+################################################################################
+
+
+SCRIPT_NAME=$(basename $0)
+SCRIPT_PATH=$(readlink -f "$(dirname $0)")
+
+
+. "$SCRIPT_PATH/kolab_config_loader"
+
+
+usage() {
+	echo "Usage: ${SCRIPT_NAME} [options]"
+	echo "List active users"
+	echo ""
+	echo -e "Options:"
+	echo -e "\t-h          Show this message"
+	echo ""
+	echo "Copyright (c) 2015-2020 Michael Roland <mi.roland@gmail.com>"
+	echo "License GPLv3+: GNU GPL version 3 or later <https://www.gnu.org/licenses/>"
+	echo ""
+	echo "This is free software: you can redistribute and/or modify it under the"
+	echo "terms of the GPLv3+.  There is NO WARRANTY; not even the implied warranty"
+	echo "of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+	echo ""
+}
+
+while getopts ":h?:" opt; do
+    case "$opt" in
+    h|\?)
+        if [ ! -z $OPTARG ] ; then
+            echo "${SCRIPT_NAME}: invalid option -- $OPTARG" >&2
+        fi
+        usage
+        exit 1
+        ;;
+    esac
+done
+
+shift $((OPTIND-1))
+[ "$1" = "--" ] && shift
+
+
+echo "##### IMAP users #####"
+zgrep -h "login:" $MAIL_LOG | \
+    sed -n -E 's/^.*\s+login:\s+(\S*)\s*(\[\S+\])\s+(\S+)\s+(\S+)\s+User\s+logged\s+in.*$/\3/p' | \
+    sort | uniq | while read -r username
+do
+    if [ "$username" == "cyrus-admin" -o  $(${KOLAB_CMD}user-info "$username" 2>/dev/null | head -c1 | wc -c) -gt 0 ] ; then
+        # user still exists
+        echo "$username"
+        zgrep -h "login:" $MAIL_LOG | grep "$username" | \
+            sed -n -E 's/^.*\s+login:\s+(\S*)\s*(\[\S+\])\s+(\S+)\s+(\S+)\s+User\s+logged\s+in.*$/\4/p' | \
+            sort | uniq | while read -r auth
+        do
+            echo -n "    $auth: "
+            zgrep -h "login:" $MAIL_LOG | grep "$username" | grep "$auth" | \
+                sed -n -E 's/^.*\s+login:\s+(\S*)\s*(\[\S+\])\s+(\S+)\s+(\S+)\s+User\s+logged\s+in.*$/\2/p' | \
+                sort | uniq | while read -r srcaddr
+            do
+                echo -n "$srcaddr "
+            done
+            echo ""
+        done
+    fi
+done
+echo ""
+
+echo "##### SMTP-SUBMISSION users #####"
+zgrep -h "postfix" $MAIL_LOG | grep "sasl_username" | \
+    sed -n -E 's/^.*\s+client=(\S+)(\[\S+\]),\s*sasl_method=(\S+),\s*sasl_username=(\S+)\s*$/\4/p' | \
+    sort | uniq | while read -r username
+do
+	echo "$username"
+	zgrep -h "postfix" $MAIL_LOG | grep "sasl_username=$username" | \
+        sed -n -E 's/^.*\s+client=(\S+)(\[\S+\]),\s*sasl_method=(\S+),\s*sasl_username=(\S+)\s*$/\3/p' | \
+        sort | uniq | while read -r auth
+    do
+        echo -n "    $auth: "
+        zgrep -h "postfix" $MAIL_LOG | grep "sasl_username=$username" | grep "sasl_method=$auth" | \
+            sed -n -E 's/^.*\s+client=(\S+)(\[\S+\]),\s*sasl_method=(\S+),\s*sasl_username=(\S+)\s*$/\2/p' | \
+            sort | uniq | while read -r srcaddr
+        do
+            echo -n "$srcaddr "
+        done
+        echo ""
+    done
+done
+echo ""
+
+echo "##### SABRE users #####"
+zgrep -h 'PROPFIND \/sabre\/' $SABRE_LOG | \
+    sed -n -E 's/^(\S+)\s+[\-]\s+(\S+)\s+\[.*?\]\s+\"PROPFIND\s+\/sabre\/([^\/]+)\/([^\/]+)\/.*?\s+HTTP\/[^\"]+\".*\"([^\"]*?)\"$/\4/ip' | \
+    sed -E 's/%40/@/' | \
+    sort | uniq | while read -r principal
+do
+    echo "Principal $principal"
+    altprincipal=$(echo "$principal" | sed -E 's/@/%40/')
+    zgrep -h 'PROPFIND \/sabre\/' $SABRE_LOG | grep -E "\\/sabre\\/[^\\/]+\\/($principal|$altprincipal)\\/" | \
+        sed -n -E 's/^(\S+)\s+[\-]\s+(\S+)\s+\[.*?\]\s+\"PROPFIND\s+\/sabre\/([^\/]+)\/([^\/]+)\/.*?\s+HTTP\/[^\"]+\".*\"([^\"]*?)\"$/\2/ip' | \
+        grep -v -E "^[\-]" | \
+        sed -E 's/%40/@/' | \
+        sort | uniq | while read -r username
+    do
+        echo "    as user $username"
+        zgrep -h 'PROPFIND \/sabre\/' $SABRE_LOG | grep -E -- "-\\s+$username" | grep -E "\\/sabre\\/[^\\/]+\\/($principal|$altprincipal)\\/" | \
+            sed -n -E 's/^(\S+)\s+[\-]\s+(\S+)\s+\[.*?\]\s+\"PROPFIND\s+\/sabre\/([^\/]+)\/([^\/]+)\/.*?\s+HTTP\/[^\"]+\".*\"([^\"]*?)\"$/\5/ip' | \
+            sort | uniq | while read -r useragent
+        do
+            echo "        $useragent"
+            zgrep -h 'PROPFIND \/sabre\/' $SABRE_LOG | grep -E -- "-\\s+$username" | grep -E "\\/sabre\\/[^\\/]+\\/($principal|$altprincipal)\\/" | grep "$useragent" | \
+                sed -n -E 's/^(\S+)\s+[\-]\s+(\S+)\s+\[.*?\]\s+\"PROPFIND\s+\/sabre\/([^\/]+)\/([^\/]+)\/.*?\s+HTTP\/[^\"]+\".*\"([^\"]*?)\"$/\3/ip' | \
+                sort | uniq | while read -r querytype
+            do
+                echo -n "            $querytype: "
+                zgrep -h 'PROPFIND \/sabre\/' $SABRE_LOG | grep -E -- "-\\s+$username" | grep -E "\\/sabre\\/[^\\/]+\\/($principal|$altprincipal)\\/" | grep "$useragent" | grep "$querytype" | \
+                    sed -n -E 's/^(\S+)\s+[\-]\s+(\S+)\s+\[.*?\]\s+\"PROPFIND\s+\/sabre\/([^\/]+)\/([^\/]+)\/.*?\s+HTTP\/[^\"]+\".*\"([^\"]*?)\"$/[\1]/ip' | \
+                    sort | uniq | while read -r srcaddr
+                do
+                    echo -n "$srcaddr "
+                done
+                echo ""
+            done
+        done
+    done
+done
+echo ""

@@ -66,17 +66,6 @@ shift $((OPTIND-1))
 [ "$1" = "--" ] && shift
 
 
-if [ ! -z "$salearn_spam" ] ; then
-    if [ ! -z "$spam_drop" ] ; then
-        salearn_spam="$spam_drop${IMAP_HIERARCHY_SEP}$salearn_spam"
-    fi
-fi
-if [ ! -z "$salearn_ham" ] ; then
-    if [ ! -z "$spam_drop" ] ; then
-        salearn_ham="$spam_drop${IMAP_HIERARCHY_SEP}$salearn_ham"
-    fi
-fi
-
 userprefix="${IMAP_NAMESPACE_USER}${IMAP_HIERARCHY_SEP}"
 for mailbox in $(${KOLAB_CMD}list-mailboxes "$userprefix%") ; do
     username=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_USER"'[\.\/](.*?)(@[^@]*)$/\1/p')

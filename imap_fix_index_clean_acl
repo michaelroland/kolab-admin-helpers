@@ -41,7 +41,7 @@ usage() {
 	echo -e "  \t  the given mailbox and any mailbox below it"
 	echo -e "  \t- Fix CRC values in cyrus.index header (for cyrus.header and"
 	echo -e "  \t  cyrus.index)"
-	echo -e "  \t- Reconstruct the given mailboxe and any mailbox below it"
+	echo -e "  \t- Reconstruct the given mailbox and any mailbox below it"
 	echo -e "  \t- Fix file system permissions on Cyrus IMAPd spool"
 	echo -e "  "
 	echo -e "  [user-id]"

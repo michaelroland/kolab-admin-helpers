@@ -28,6 +28,7 @@ SCRIPT_PATH=$(readlink -f "$(dirname $0)")
 
 
 KOLAB_CONF="/etc/kolab/kolab.conf"
+ROUNDCUBE_DEFAULT_CONF="/etc/roundcubemail/defaults.inc.php"
 ROUNDCUBE_CONF="/etc/roundcubemail/defaults.inc.php"
 IMAPD_CONF="/etc/imapd.conf"
 MYSQL_USE_KOLAB_USER=0
@@ -154,7 +155,10 @@ KOLAB_POLICY_CACHE_CMD=$(get_db_cmd "$kolab_policy_cache_uri")
 
 roundcube_db_uri=$(get_config_php_value "$ROUNDCUBE_CONF" '\$config\[["'"'"']db_dsnw["'"'"']\]')
 if [ -z "$roundcube_db_uri" ] ; then
-    roundcube_db_uri="$ROUNDCUBE_DB_URI_DEFAULT"
+	roundcube_db_uri=$(get_config_php_value "$ROUNDCUBE_DEFAULT_CONF" '\$config\[["'"'"']db_dsnw["'"'"']\]')
+fi
+if [ -z "$roundcube_db_uri" ] ; then
+	roundcube_db_uri="$ROUNDCUBE_DB_URI_DEFAULT"
 fi
 ROUNDCUBE_DB_CMD=$(get_db_cmd "$roundcube_db_uri")
 

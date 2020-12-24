@@ -29,7 +29,7 @@ SCRIPT_PATH=$(readlink -f "$(dirname $0)")
 
 KOLAB_CONF="/etc/kolab/kolab.conf"
 ROUNDCUBE_DEFAULT_CONF="/etc/roundcubemail/defaults.inc.php"
-ROUNDCUBE_CONF="/etc/roundcubemail/defaults.inc.php"
+ROUNDCUBE_CONF="/etc/roundcubemail/config.inc.php"
 IMAPD_CONF="/etc/imapd.conf"
 MYSQL_USE_KOLAB_USER=0
 SERVICE_SMTP="postfix.service"

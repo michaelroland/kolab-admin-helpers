@@ -61,7 +61,7 @@ shift $((OPTIND-1))
 [ "$1" = "--" ] && shift
 
 
-$SCRIPT_PATH/kolab_clear_authcache
+$SCRIPT_PATH/clear_auth_caches
 
 echo "Clearing other caches ..."
 

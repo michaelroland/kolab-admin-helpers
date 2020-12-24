@@ -96,7 +96,7 @@ if [ ! -z "$user_to_purge" ] ; then
 	sed -E "s/\s$user_to_purge\s+[a-z]+//g" "$db_tmp_file" >"$db_new_tmp_file"
 	if ! diff -q "$db_tmp_file" "$db_new_tmp_file" >/dev/null ; then
 		echo "User $user_to_purge purged from database:"
-		diff -u 1 "$db_tmp_file" "$db_new_tmp_file"
+		diff -u1 "$db_tmp_file" "$db_new_tmp_file"
 		echo "Updating IMAP mailbox database ..."
 		su ${IMAPD_USER} -c "${CYRUS_CMD}ctl_mboxlist -u" <"$db_new_tmp_file"
 	fi

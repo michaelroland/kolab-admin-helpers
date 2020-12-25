@@ -133,9 +133,9 @@ function get_db_cmd () {
         local password=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)?$/\4/p')
         local hostname=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)?$/\5/p')
         if [ $MYSQL_USE_CONFIGURED_USER -eq 0 ] ; then
-            cmd="${MYSQL_CMD} -v --host=$hostname $database"
+            cmd="${MYSQL_CMD} -vv --host=$hostname $database"
         else
-            cmd="${MYSQL_CMD} -v --host=$hostname --user=$username --password=$password $database"
+            cmd="${MYSQL_CMD} -vv --host=$hostname --user=$username --password=$password $database"
         fi
     fi
     echo "$cmd"

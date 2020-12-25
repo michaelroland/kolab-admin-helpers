@@ -31,7 +31,7 @@ KOLAB_CONF="/etc/kolab/kolab.conf"
 ROUNDCUBE_DEFAULT_CONF="/etc/roundcubemail/defaults.inc.php"
 ROUNDCUBE_CONF="/etc/roundcubemail/config.inc.php"
 IMAPD_CONF="/etc/imapd.conf"
-MYSQL_USE_KOLAB_USER=0
+MYSQL_USE_CONFIGURED_USER=0
 SERVICE_SMTP="postfix.service"
 SERVICE_IMAP="cyrus-imapd.service"
 SERVICE_WEB="apache2.service"
@@ -126,16 +126,16 @@ function get_db_cmd () {
     local path=$(echo "$uri" | sed -n -E 's/^([^:]+):(\/\/)?([^\/]*)(\/.*)?$/\4/p')
     local cmd=""
     if [ "$scheme" == "sqlite" ] ; then
-        cmd="${SQLITE_CMD} $path"
+        cmd="${SQLITE_CMD} -echo $path"
     elif [ "$scheme" == "mysql" -o "$scheme" == "mysqli" ] ; then
         local database=$(echo "$path" | sed -n -E 's/^\/(.*)$/\1/p')
         local username=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)?$/\2/p')
         local password=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)?$/\4/p')
         local hostname=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)?$/\5/p')
-        if [ $MYSQL_USE_KOLAB_USER -eq 0 ] ; then
-            cmd="${MYSQL_CMD} --host=$hostname $database"
+        if [ $MYSQL_USE_CONFIGURED_USER -eq 0 ] ; then
+            cmd="${MYSQL_CMD} -v --host=$hostname $database"
         else
-            cmd="${MYSQL_CMD} --host=$hostname --user=$username --password=$password $database"
+            cmd="${MYSQL_CMD} -v --host=$hostname --user=$username --password=$password $database"
         fi
     fi
     echo "$cmd"

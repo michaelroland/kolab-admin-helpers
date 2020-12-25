@@ -23,8 +23,8 @@
 ################################################################################
 
 
-SCRIPT_NAME=$(basename $0)
-SCRIPT_PATH=$(readlink -f "$(dirname $0)")
+SCRIPT_NAME=$(basename -- $0)
+SCRIPT_PATH=$(readlink -f "$(dirname -- $0)")
 
 
 KOLAB_CONF="/etc/kolab/kolab.conf"
@@ -127,11 +127,11 @@ function get_db_cmd () {
     local cmd=""
     if [ "$scheme" == "sqlite" ] ; then
         cmd="${SQLITE_CMD} $path"
-    elif [ "$scheme" == "mysql" ] ; then
+    elif [ "$scheme" == "mysql" -o "$scheme" == "mysqli" ] ; then
         local database=$(echo "$path" | sed -n -E 's/^\/(.*)$/\1/p')
-        local username=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)$/\2/p')
-        local password=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)$/\4/p')
-        local hostname=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)$/\5/p')
+        local username=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)?$/\2/p')
+        local password=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)?$/\4/p')
+        local hostname=$(echo "$host" | sed -n -E 's/^(([^:]*)(:([^@]*))?@)?([^\?]*)(\?.*)?$/\5/p')
         if [ $MYSQL_USE_KOLAB_USER -eq 0 ] ; then
             cmd="${MYSQL_CMD} --host=$hostname $database"
         else

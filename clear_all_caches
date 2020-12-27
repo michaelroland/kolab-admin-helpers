@@ -65,6 +65,7 @@ $SCRIPT_PATH/clear_auth_caches
 
 echo "Clearing other caches ..."
 
+# TODO: Switch to using /usr/share/roundcubemail/plugins/libkolab/bin/modcache.sh
 echo "  Expiring Roundcube caches ..."
 ${ROUNDCUBE_DB_CMD} <<EOF
 delete from cache;
@@ -80,6 +81,7 @@ delete from kolab_cache_freebusy;
 delete from kolab_cache_journal;
 delete from kolab_cache_note;
 delete from kolab_cache_task;
+delete from kolab_folders;
 EOF
 
 

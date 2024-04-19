@@ -4,7 +4,7 @@
 ## 
 ## Cleanup broken ACLs of non-existing users and fix mailbox index files
 ## 
-## Copyright (C) 2015-2020 Michael Roland <mi.roland@gmail.com>
+## Copyright (C) 2015-2024 Michael Roland <mi.roland@gmail.com>
 ## 
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@ usage() {
 	echo -e "Options:"
 	echo -e "\t-h          Show this message"
 	echo ""
-	echo "Copyright (c) 2015-2020 Michael Roland <mi.roland@gmail.com>"
+	echo "Copyright (c) 2015-2024 Michael Roland <mi.roland@gmail.com>"
 	echo "License GPLv3+: GNU GPL version 3 or later <https://www.gnu.org/licenses/>"
 	echo ""
 	echo "This is free software: you can redistribute and/or modify it under the"
@@ -83,6 +83,9 @@ fi
 mbox_to_fix="$1"
 user_to_purge="$2"
 
+
+echo "Using Kolab's built-in ACL cleanup tool ..."
+${KOLAB_CMD}acl-cleanup
 
 if [ ! -z "$user_to_purge" ] ; then
     db_tmp_file=$(mktemp)
@@ -155,5 +158,8 @@ chown -R ${IMAPD_USER}:${IMAPD_GROUP} "${IMAP_SPOOL}"
 
 echo "Starting IMAP daemon ..."
 systemctl start cyrus-imapd.service
+
+echo "Using Kolab's built-in ACL cleanup tool ..."
+${KOLAB_CMD}acl-cleanup
 
 echo "Done."

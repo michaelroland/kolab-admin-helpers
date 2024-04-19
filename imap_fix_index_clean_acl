@@ -84,13 +84,24 @@ mbox_to_fix="$1"
 user_to_purge="$2"
 
 
-echo "Using Kolab's built-in ACL cleanup tool ..."
-${KOLAB_CMD}acl-cleanup
-
 if [ ! -z "$user_to_purge" ] ; then
     db_tmp_file=$(mktemp)
     db_new_tmp_file=$(mktemp)
-
+    
+    echo "Using Kolab's built-in ACL cleanup tool ..."
+    #${KOLAB_CMD}acl-cleanup "$user_to_purge"
+    python <<EOF
+import sys
+sys.argv.extend(["-d", "5"])
+import pykolab
+from pykolab.imap import IMAP
+conf = pykolab.getConf()
+conf.finalize_conf()
+imap = IMAP()
+imap.connect()
+imap.cleanup_acls("$user_to_purge")
+EOF
+	
     echo "Stopping IMAP daemon ..."
     systemctl stop ${SERVICE_IMAP}
 
@@ -159,7 +170,7 @@ chown -R ${IMAPD_USER}:${IMAPD_GROUP} "${IMAP_SPOOL}"
 echo "Starting IMAP daemon ..."
 systemctl start cyrus-imapd.service
 
-echo "Using Kolab's built-in ACL cleanup tool ..."
-${KOLAB_CMD}acl-cleanup
+#echo "Using Kolab's built-in ACL cleanup tool ..."
+#${KOLAB_CMD}acl-cleanup
 
 echo "Done."

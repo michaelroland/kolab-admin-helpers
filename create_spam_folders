@@ -4,7 +4,7 @@
 ## 
 ## Create IMAP spam sorting folders
 ## 
-## Copyright (C) 2015-2020 Michael Roland <mi.roland@gmail.com>
+## Copyright (C) 2015-2024 Michael Roland <mi.roland@gmail.com>
 ## 
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ usage() {
 	echo -e "\t            (default: $salearn_ham)"
 	echo -e "\t-h          Show this message"
 	echo ""
-	echo "Copyright (c) 2015-2020 Michael Roland <mi.roland@gmail.com>"
+	echo "Copyright (c) 2015-2024 Michael Roland <mi.roland@gmail.com>"
 	echo "License GPLv3+: GNU GPL version 3 or later <https://www.gnu.org/licenses/>"
 	echo ""
 	echo "This is free software: you can redistribute and/or modify it under the"
@@ -95,8 +95,8 @@ fi
 echo "Scanning mailboxes for missing spam folders ..."
 userprefix="${IMAP_NAMESPACE_USER}${IMAP_HIERARCHY_SEP}"
 for mailbox in $(${KOLAB_CMD}list-mailboxes "$userprefix%") ; do
-    username=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_USER"'[\.\/](.*?)(@[^@]*)$/\1/p')
-    domain=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_USER"'[\.\/](.*?)(@[^@]*)$/\2/p')
+    username=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_USER"'[\'"$IMAP_HIERARCHY_SEP"'](.*?)(@[^@]*)$/\1/p')
+    domain=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_USER"'[\'"$IMAP_HIERARCHY_SEP"'](.*?)(@[^@]*)$/\2/p')
 
     if [ $(${KOLAB_CMD}user-info "$username$domain" | head -c1 | wc -c) -gt 0 ] ; then
         # user exists, try to create folders

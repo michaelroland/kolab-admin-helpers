@@ -4,7 +4,7 @@
 ## 
 ## Fix shared mailbox sub-folder ACLs
 ## 
-## Copyright (C) 2015-2020 Michael Roland <mi.roland@gmail.com>
+## Copyright (C) 2015-2024 Michael Roland <mi.roland@gmail.com>
 ## 
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ usage() {
 	echo -e "Options:"
 	echo -e "\t-h          Show this message"
 	echo ""
-	echo "Copyright (c) 2015-2020 Michael Roland <mi.roland@gmail.com>"
+	echo "Copyright (c) 2015-2024 Michael Roland <mi.roland@gmail.com>"
 	echo "License GPLv3+: GNU GPL version 3 or later <https://www.gnu.org/licenses/>"
 	echo ""
 	echo "This is free software: you can redistribute and/or modify it under the"
@@ -65,8 +65,8 @@ echo "Scanning shared mailboxes, fixing sub-folder permissions if incorrect ..."
 mbxprefix="${IMAP_NAMESPACE_SHARED}${IMAP_HIERARCHY_SEP}"
 for mailbox in $(${KOLAB_CMD}list-mailboxes "$mbxprefix%") ; do
     echo "Analyzing $mailbox ..."
-    mbxname=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_SHARED"'[\.\/](.*?)(@[^@]*)$/\1/p')
-    domain=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_SHARED"'[\.\/](.*?)(@[^@]*)$/\2/p')
+    mbxname=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_SHARED"'[\'"$IMAP_HIERARCHY_SEP"'](.*?)(@[^@]*)$/\1/p')
+    domain=$(echo "$mailbox" | sed -n -E 's/^'"$IMAP_NAMESPACE_SHARED"'[\'"$IMAP_HIERARCHY_SEP"'](.*?)(@[^@]*)$/\2/p')
     
     parent_acls=$(${KOLAB_CMD}list-mailbox-acls "$mbxprefix$mbxname$domain" | grep -E '^\s+[a-z]+\s+')
     for folder in $(${KOLAB_CMD}list-mailboxes "$mbxprefix$mbxname/*$domain") ; do

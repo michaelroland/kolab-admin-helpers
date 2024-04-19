@@ -13,7 +13,7 @@ Find documentation and grab the latest version on GitHub
 
 ## COPYRIGHT
 
-- Copyright (C) 2015-2020 Michael Roland <<mi.roland@gmail.com>>
+- Copyright (C) 2015-2024 Michael Roland <<mi.roland@gmail.com>>
 
 
 ## DISCLAIMER
